@@ -1,5 +1,4 @@
 const db = require('../../data/db-config')
-const yup = require('yup')
 const jwt = require('jsonwebtoken');
 const { JWT_SECRET } = require("../secrets"); // use this secret!
 
@@ -8,11 +7,12 @@ const restricted = (req, res, next) => {
   if (!token) {
     return next({status: 401, message: 'Token required'})
   }
-  jwt.verify(token JWT_SECRET, (err, decoded) => {
+  jwt.verify(token, JWT_SECRET, (err, decoded) => {
     if (err) {
       return next({status: 401, message: 'Token invalid'})
     } 
     req.decodedJwt = decoded
+    next()
   })
 }
   /*
@@ -33,7 +33,7 @@ const restricted = (req, res, next) => {
 
 
 const only = role_name => (req, res, next) => {
-  if(req.decodedJwt.role === role_name) {
+  if(req.decodedJwt.role_name === role_name) {
     next()
   } else {
     next({status: 403, message: 'This is not for you'})
@@ -69,15 +69,24 @@ const checkUsernameExists = async (req, res, next) => {
     }
   */
 
-const roleSchema = yup.object().shape({
-  role: yup.string()
-    .trim()
-    .max(32, 'Role name can not be longer than 32 chars')
-    
-})
 
-
-const validateRoleName = (req, res, next) => {
+const validateRoleName = async (req, res, next) => {
+    let role_name = req.body.role_name
+    console.log(role_name)
+    if (role_name === '' || !role_name) {
+      req.body.role_name = 'student'
+      return next()
+    } 
+    if (role_name.trim().length > 32) {
+      next({status: 422, message: 'Role name can not be longer than 32 chars'})
+    }
+    if (role_name.trim() === 'admin') {
+        return next({status: 422, message: 'Role name can not be admin'})
+    } else {
+      req.body.role_name = role_name.trim()
+      return next()
+    }
+     
   /*
     If the role_name in the body is valid, set req.role_name to be the trimmed string and proceed.
 
